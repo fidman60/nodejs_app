@@ -1,0 +1,160 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>Todo list</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css"
+          integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+</head>
+<body>
+<div class="container">
+    <div class="row d-flex justify-content-center">
+        <div class="col">
+            <div class="mb-2 d-flex justify-content-between align-items-center">
+                <h1>Le super chat temps réel !</h1>
+                <button id="disconnect" class="btn btn-danger">Disconnect</button>
+            </div>
+            <div class="mb-4">
+                <div class="d-flex w-100 justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <div>
+                            Votre nom: <span id="name"><span class="font-weight-bold"><%= user.name %></span> <a id="edit_icon" href="#"><span><i class="far fa-edit"></i></span></a></span>
+                        </div>
+                        <div id="input_name_section" class="d-none">
+                            <div class="ml-1 d-flex">
+                                <input type="text" id="name_input" class="form-control mr-1"><button id="edit_btn" class="btn btn-primary">Edit</button><button id="cancel_edit" class="btn btn-danger ml-2">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <a id="beep" style="font-size: large" href="#"><i class="fas fa-volume-down"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div id="user_id" class="d-none"><%= user ? user._id : '' %></div>
+            <div id="username" class="d-none"><%= user ? user.name : '' %></div>
+            <div id="message_input" class="d-flex">
+                <input placeholder="Entrer votre messge" type="text" class="form-control mr-2">
+                <button class="btn btn-primary">Envoyer</button>
+            </div>
+            <div class="mt-2" id="chat">
+                <% for(let i=0;i<chatList.length;i++){ %>
+                <div class="mb-1">
+                    <strong data-placement="bottom" data-toggle="tooltip" title="<%= moment(chatList[i].date).format('MMMM Do YYYY, h:mm:ss a') %>"><%= chatList[i].user.name %></strong>  <%= chatList[i].message %>
+                </div>
+                <% } %>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/moment.js/2.7.0/moment.min.js" type="text/javascript"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    const socket = io.connect('http://localhost:8080/chat');
+
+    socket.on('message', (message) => {
+        alert("Connection has been established with this message: "+ message);
+    });
+
+    socket.on('connected', (user) => {
+        $('#chat').prepend($('<div></div>').html(`<strong>${user.name}</strong> à rejoint le chat`));
+        $('#user_id').html(user._id);
+        $('#username').html(user.name);
+    });
+
+    socket.on('disconnected', () => {
+        window.location.href = "/login";
+    });
+
+    socket.on('new_logged_user', (user) => {
+        $('#chat').prepend($('<div></div>').html(`<strong>${user.name}</strong> à rejoint le chat`));
+    });
+
+    socket.on('user_left_chat', (name) => {
+        $('#chat').prepend($('<div></div>').html(`<strong>${name}</strong> à quitter la conversation`));
+    });
+
+    socket.on('new_message', message => {
+        console.log(message);
+        $('#chat').prepend($('<div></div>').append([
+            $(`<strong></strong>`).attr({
+                'data-placement': 'bottom',
+                'data-toggle': 'bottom',
+                'title': `${moment(message.date).format('MMMM Do YYYY, h:mm:ss a')}`,
+            }).html(`${message.user.name}`).tooltip(),
+            ` ${message.message}`
+        ]));
+    });
+
+    socket.on('user_name_edited', data => {
+        closeEditName();
+        console.log(data);
+        $('#username').html(data.user.name);
+        $('#name > span:first-child').html(data.user.name);
+        $('#chat').prepend($('<div></div>').html(`<strong>${data.oldName}</strong> a changé son nom est devenu <strong>${data.user.name}</strong>`));
+    });
+
+    socket.on('user_name_edited_broadcast', data => {
+        $('#chat').prepend($('<div></div>').html(`<strong>${data.oldName}</strong> a changé son nom est devenu <strong>${data.user.name}</strong>`));
+    });
+
+    socket.on('wizz', () => {
+        beep();
+    });
+</script>
+
+<script>
+    $('#message_input').find('button').click(function () {
+        const message = $('#message_input').find('input').val();
+        $('#message_input').find('input').val("");
+        socket.emit('send_message', message);
+    });
+
+    $('#disconnect').click(function () {
+        socket.emit('logout');
+    });
+</script>
+<script>
+    $(document).ready(function(){
+        $('[data-toggle="tooltip"]').tooltip();
+    });
+</script>
+
+<script>
+    $("#edit_icon").click(function (e) {
+        e.preventDefault();
+        $('#name_input').val($('#username').html());
+        $('#input_name_section').removeClass('d-none');
+        $('#name').addClass('d-none');
+    });
+
+    function closeEditName() {
+        $('#name_input').val("");
+        $('#input_name_section').addClass('d-none');
+        $('#name').removeClass('d-none');
+    }
+    $('#cancel_edit').click(closeEditName);
+
+    $('#edit_btn').click(function () {
+        if ($('#name_input').val())
+            socket.emit('edit_name', $('#name_input').val());
+        else alert("Vous devez saissez un nom valid");
+    });
+
+    $('#beep').click(function (e) {
+        e.preventDefault();
+        socket.emit('wizz');
+    });
+
+    function beep() {
+        const snd = new  Audio("data:audio/wav;base64,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qJrx4KOQjahZxWbcZgztj2c49nKmkId44S71j0c8eV9yDK6uPRzx5X18eDvjvQ6yKo9ZSS6l//8elePK/Lf//IInrOF/FvDoADYAGBMGb7FtErm5MXMlmPAJQVgWta7Zx2go+8xJ0UiCb8LHHdftWyLJE0QIAIsI+UbXu67dZMjmgDGCGl1H+vpF4NSDckSIkk7Vd+sxEhBQMRU8j/12UIRhzSaUdQ+rQU5kGeFxm+hb1oh6pWWmv3uvmReDl0UnvtapVaIzo1jZbf/pD6ElLqSX+rUmOQNpJFa/r+sa4e/pBlAABoAAAAA3CUgShLdGIxsY7AUABPRrgCABdDuQ5GC7DqPQCgbbJUAoRSUj+NIEig0YfyWUho1VBBBA//uQZB4ABZx5zfMakeAAAAmwAAAAF5F3P0w9GtAAACfAAAAAwLhMDmAYWMgVEG1U0FIGCBgXBXAtfMH10000EEEEEECUBYln03TTTdNBDZopopYvrTTdNa325mImNg3TTPV9q3pmY0xoO6bv3r00y+IDGid/9aaaZTGMuj9mpu9Mpio1dXrr5HERTZSmqU36A3CumzN/9Robv/Xx4v9ijkSRSNLQhAWumap82WRSBUqXStV/YcS+XVLnSS+WLDroqArFkMEsAS+eWmrUzrO0oEmE40RlMZ5+ODIkAyKAGUwZ3mVKmcamcJnMW26MRPgUw6j+LkhyHGVGYjSUUKNpuJUQoOIAyDvEyG8S5yfK6dhZc0Tx1KI/gviKL6qvvFs1+bWtaz58uUNnryq6kt5RzOCkPWlVqVX2a/EEBUdU1KrXLf40GoiiFXK///qpoiDXrOgqDR38JB0bw7SoL+ZB9o1RCkQjQ2CBYZKd/+VJxZRRZlqSkKiws0WFxUyCwsKiMy7hUVFhIaCrNQsKkTIsLivwKKigsj8XYlwt/WKi2N4d//uQRCSAAjURNIHpMZBGYiaQPSYyAAABLAAAAAAAACWAAAAApUF/Mg+0aohSIRobBAsMlO//Kk4soosy1JSFRYWaLC4qZBYWFRGZdwqKiwkNBVmoWFSJkWFxX4FFRQWR+LsS4W/rFRb/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////VEFHAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAU291bmRib3kuZGUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMjAwNGh0dHA6Ly93d3cuc291bmRib3kuZGUAAAAAAAAAACU=");
+        snd.play();
+    }
+    </script>
+
+</body>
+</html>

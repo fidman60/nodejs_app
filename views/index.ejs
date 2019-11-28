@@ -1,0 +1,60 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>Todo list</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <div class="row d-flex justify-content-center">
+        <div class="col">
+            <h1>Ma todolist</h1>
+            <ul class="p-0">
+                <% for(let i=0;i<todoList.length;i++) { %>
+                <li class="d-flex">
+                    <a href="/delete_todo/<%= todoList[i]._id %>">delete</a>
+                    <a class="ml-2 editer" href="#">editer</a>
+                    <p class="ml-2 todo"><%= todoList[i].todo %></p>
+                    <form action="/edit_todo" method="post" class="ml-4 edit-form d-none">
+                        <input type="hidden" name="todo_id" value="<%= todoList[i]._id %>" />
+                        <input type="text" name="new_todo" value="<%= todoList[i].todo %>"/>
+                        <button type="submit">Changer</button>
+                        <button class="annuler-edit" type="button">Annuler</button>
+                    </form>
+                </li>
+                <% } %>
+            </ul>
+            <form method="post" action="/add_todo">
+                <p>Que dois-je faire ? <input type="text" name="todoItem"> <button type="submit">Ajouter</button></p>
+            </form>
+            <a href="/csv">Export csv file</a>
+        </div>
+    </div>
+</div>
+<script>
+    $('.editer').on('click', function(e){
+        e.preventDefault();
+        $(this).parent().find('.todo').addClass('d-none');
+        $(this).parent().find('.edit-form').removeClass('d-none');
+    });
+
+    $('.annuler-edit').on('click', function(e){
+        $(this).parent().parent().find('.todo').removeClass('d-none');
+        $(this).parent().addClass('d-none');
+    });
+</script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    const socket = io.connect('http://localhost:8080');
+    socket.on('message', (message) => {
+        alert("Connection has been established with this message: "+ message);
+    });
+
+    socket.on('test', (message) => {
+        alert(message);
+    });
+</script>
+</body>
+</html>
