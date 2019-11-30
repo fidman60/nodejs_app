@@ -1,3 +1,5 @@
+Simple chat real time chat app
+
 - url: '/chat'
 
 Technologies used:
