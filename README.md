@@ -1,4 +1,4 @@
-Simple chat real time chat app
+Simple real time chat app
 
 - url: '/chat'
 
