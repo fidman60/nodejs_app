@@ -13,6 +13,10 @@ const messageSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     },
+    file: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'File'
+    }
 });
 
 export default mongoose.model('Message', messageSchema);

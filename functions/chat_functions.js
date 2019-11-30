@@ -1,9 +1,11 @@
 import Message from "../models/Message";
 import User from "../models/User";
+import File from "../models/File";
+import {gfs} from "../index";
 
 export function getChatList() {
     return new Promise((resolve, reject) => {
-        Message.find({}).populate('user').sort({date: -1}).exec((err, messages) => {
+        Message.find({}).populate('user').populate('file').sort({date: -1}).exec((err, messages) => {
             if (err) reject(err);
             resolve(messages);
         });
@@ -37,11 +39,16 @@ export function editUserName(name, user_id) {
     });
 }
 
-export function createMessage(message, user_id) {
+export function createMessage(message, user_id, file_id = null) {
     return new Promise((resolve, reject) => {
-        Message.create({message,user: user_id}, (err, message)=> {
+        let data = {
+            message,
+            user: user_id,
+        };
+        if (file_id) data.file = file_id;
+        Message.create(data, (err, message)=> {
             if (err) reject(err);
-            resolve(message);
+            message.populate(['file','user']).execPopulate(() => resolve(message))
         });
     });
 }

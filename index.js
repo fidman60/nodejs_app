@@ -8,19 +8,41 @@ import {getTodoList, deleteTodo, editTodo, addTodo} from "./functions/db_functio
 import {createMessage, createUser, editUserName, findUserByName, getChatList} from "./functions/chat_functions";
 import moment from 'moment';
 import mongoose from 'mongoose';
+import multer from 'multer';
+import GridFsStorage from 'multer-gridfs-storage';
+import GridFsStream from 'gridfs-stream';
+import ss from 'socket.io-stream';
+
+// file storage
+export let gfs;
+let storage;
+let singleUpload;
+
+
+// db connection
+mongoose.connect('mongodb://localhost:27017/chat', {useNewUrlParser: true});
+const db = mongoose.connection;
+db.on('error', console.error.bind(console, 'connection error:'));
+db.once('open', function() {
+    console.log("Successful connection !");
+    GridFsStream.mongo = mongoose.mongo;
+    gfs = GridFsStream(mongoose.connection.db);
+    storage = GridFsStorage({
+        db: mongoose.connection.db,
+        file: (req, file) => {
+            return {
+                filename: file.originalname
+            }
+        }
+    });
+    singleUpload = multer({ storage: storage }).single('file');
+    server.listen(8080);
+});
 
 const app = express();
 const server = http.Server(app);
 const io = socket(server);
 const session = express_session({secret: 'fidman_io_session',saveUninitialized: true,resave: true});
-
-mongoose.connect('mongodb://localhost:27017/chat', {useNewUrlParser: true})
-const db = mongoose.connection;
-db.on('error', console.error.bind(console, 'connection error:'));
-db.once('open', function() {
-    console.log("Successful connection !");
-    server.listen(8080);
-});
 
 app.use(session);
 io.of('/chat').use(sharedsession(session));
@@ -44,6 +66,46 @@ app.get('/chat', (req, res) => {
 app.get('/login', (req, res) => {
     if (req.session.user) res.redirect('/chat');
     else res.render('login.ejs');
+});
+
+app.post('/chat/upload', (req, res) => {
+    singleUpload(req,res,function(err){
+        if (req.file) {
+            createMessage("This is my cv", req.body.user_id, req.file.id);
+            return res.json({
+                success: true,
+                file: req.file
+            });
+        }
+        res.send({ success: false });
+    });
+
+});
+
+app.get('/file/:filename', function(req, res){
+    gfs.files.find({ filename: req.params.filename }).toArray((err, files) => {
+        if(!files || files.length === 0){
+            return res.status(404).json({
+                message: "Could not find file"
+            });
+        }
+        var readstream = gfs.createReadStream({
+            filename: files[0].filename
+        });
+        res.set('Content-Type', files[0].contentType);
+        return readstream.pipe(res);
+    });
+});
+
+app.get('/files', function(req, res){
+    gfs.files.find().toArray((err, files) => {
+        if(!files || files.length === 0){
+            return res.status(404).json({
+                message: "Could not find files"
+            });
+        }
+        return res.json(files);
+    });
 });
 
 // index.ejs
@@ -114,6 +176,27 @@ io.of('/chat').on('connection', function (socket) {
             socket.handshake.session.save();
             socket.emit('disconnected');
             socket.broadcast.emit('user_left_chat', user_name);
+        }
+    });
+
+    // message with attached file
+    ss(socket).on('send_message', function (message, {stream, fileName}) {
+        if (socket.handshake.session.user) {
+            let writeStream = gfs.createWriteStream(fileName);
+            stream.pipe(writeStream);
+
+            writeStream.on('finish', () => {
+                createMessage(message, socket.handshake.session.user._id, writeStream.id)
+                    .then(message => {
+                        const msg = {
+                            ...message._doc,
+                            user: socket.handshake.session.user,
+                        };
+                        socket.broadcast.emit('new_message', msg);
+                        socket.emit('new_message_user', msg)
+                    })
+                    .catch(err => console.log(err));
+            });
         }
     });
 
