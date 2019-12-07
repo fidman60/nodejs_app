@@ -9,8 +9,4 @@ let userSchema = new mongoose.Schema({
     }
 });
 
-userSchema.pre('remove', function(next) {
-    this.model('Message').deleteMany({ user: this._id }, next);
-});
-
 export default mongoose.model('User', userSchema);

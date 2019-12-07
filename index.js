@@ -18,7 +18,6 @@ export let gfs;
 let storage;
 let singleUpload;
 
-
 // db connection
 mongoose.connect('mongodb://localhost:27017/chat', {useNewUrlParser: true});
 const db = mongoose.connection;
